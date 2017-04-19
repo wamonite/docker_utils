@@ -1,0 +1,7 @@
+#!/bin/bash
+
+container_name=container_name
+#container_network=host
+#container_daemon=1
+
+docker_args="-e FOO=BAR"
