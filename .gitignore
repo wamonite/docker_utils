@@ -1,0 +1,9 @@
+*~
+*.pyc
+*.pyo
+__pycache__
+.eggs
+*.egg-info
+.tox
+.cache
+.idea
