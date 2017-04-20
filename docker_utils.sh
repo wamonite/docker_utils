@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 
-# 2017-04-19 10:38
+# 2017-04-20 16:45
 
 script_path=$(cd $(dirname $0); pwd -P)
 
@@ -14,6 +14,10 @@ script_path=$(cd $(dirname $0); pwd -P)
 repo_name=${DOCKER_REPO:-994101561910.dkr.ecr.eu-west-1.amazonaws.com/spatialbuzz}
 image_name="${repo_name:+${repo_name}/}${container_name}"
 docker_cmd=${DOCKER_CMD:-docker}
+if [[ ! -z "${DOCKER_HOST:-}" && "${DOCKER_HOST}" =~ ^tcp://(.*):[0-9]*$ ]]
+then
+    container_hostname="${BASH_REMATCH[1]}"
+fi
 
 # for a symlink name <prefix>_<type>.sh echo <type> or nothing
 function get_link_type() {
