@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 
-# 2017-04-20 16:45
+# 2017-04-27 13:42
 
 script_path=$(cd $(dirname $0); pwd -P)
 
@@ -11,7 +11,7 @@ script_path=$(cd $(dirname $0); pwd -P)
 [ ! -d "${script_path}/src" ] && { echo "src directory not found" 1>&2 ; exit 1 ; }
 
 # defaults
-repo_name=${DOCKER_REPO:-994101561910.dkr.ecr.eu-west-1.amazonaws.com/spatialbuzz}
+repo_name=${DOCKER_REPO:-}
 image_name="${repo_name:+${repo_name}/}${container_name}"
 docker_cmd=${DOCKER_CMD:-docker}
 if [[ ! -z "${DOCKER_HOST:-}" && "${DOCKER_HOST}" =~ ^tcp://(.*):[0-9]*$ ]]
