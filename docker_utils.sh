@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 
-# 2017-04-27 13:42
+# 2017-06-21 17:17
 
 script_path=$(cd $(dirname $0); pwd -P)
 
@@ -61,7 +61,7 @@ start_container*)
     elif [ ! -z "${container_daemon:-}" ]
     then
         echo "#### START DAEMON ${container_name}"
-        exec ${docker_cmd} run -d --restart unless-stopped ${docker_args:-} $(get_host_args) ${image_name}
+        exec ${docker_cmd} run -d --restart unless-stopped ${docker_args:-} $(get_host_args) ${image_name} ${daemon_args:-}
     else
         echo "#### START ${container_name}"
         exec ${docker_cmd} run --rm ${docker_args:-} $(get_host_args) ${image_name}
