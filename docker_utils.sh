@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 
-# 2017-09-05 12:22
+# 2017-09-11 10:43
 
 script_path=$(cd $(dirname $0); pwd -P)
 
@@ -117,11 +117,14 @@ stop_container*)
     if [[ ! -z "${link_type}" ]]
     then
         container_name="${container_name}_${link_type}"
+
+        docker_stop_timeout_name="docker_stop_timeouts_${link_type}"
+        [[ ! -z "${!docker_stop_timeout_name:-}" ]] && docker_stop_timeout="${!docker_stop_timeout_name}"
     fi
 
     echo "#### STOP ${container_name}"
     set +e
-    ${docker_cmd} stop "${container_name}"
+    ${docker_cmd} stop ${docker_stop_timeout:+--time ${docker_stop_timeout}} "${container_name}"
     ${docker_cmd} logs --tail 100 "${container_name}"
     ${docker_cmd} rm -v "${container_name}"
     set -e
