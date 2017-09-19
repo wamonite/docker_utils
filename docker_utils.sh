@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 
-# 2017-09-11 10:43
+# 2017-09-19 13:45
 
 script_path=$(cd $(dirname $0); pwd -P)
 
@@ -169,6 +169,22 @@ push_image*)
         then
             git tag -a "${version}" -m "${image_name}:${version}"
         fi
+    fi
+    ;;
+
+list_remote_tags*)
+    link_type=$(get_link_type "push_image" "${script_name}")
+    container_name=$(get_container_name "${link_type}")
+    image_name=$(get_image_name "${container_name}")
+
+    echo '#### LIST REMOTE TAGS'
+
+    if [[ "${DOCKER_REPO:-}" =~ ^[0-9]*\.dkr\.ecr\.[^\.]*\.amazonaws\.com\/*(.*)$ ]]
+    then
+        image_info=$(aws ecr describe-images --repository-name "${BASH_REMATCH[1]:+${BASH_REMATCH[1]}/}${container_name}" | jq .imageDetails[].imageTags[] | sort)
+        echo "${image_info}"
+    else
+        echo "Unknown repository: ${DOCKER_REPO:-}"
     fi
     ;;
 
