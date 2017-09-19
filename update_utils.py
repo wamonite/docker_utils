@@ -66,19 +66,21 @@ def get_file_version(file_name):
 def get_latest_file(file_list):
     latest_file = None
     latest_version = None
-
-    matched_list = []
     for file_name in file_list:
         file_version = get_file_version(file_name)
         if not latest_version or (file_version and file_version > latest_version):
             latest_file = file_name
             latest_version = file_version
 
-        elif latest_version and latest_version == file_version:
-            matched_list.append(file_name)
+    if latest_version:
+        matched_list = []
+        for file_name in file_list:
+            file_version = get_file_version(file_name)
+            if latest_version == file_version:
+                matched_list.append(file_name)
 
-    for file_name in matched_list:
-        file_list.remove(file_name)
+        for file_name in matched_list:
+            file_list.remove(file_name)
 
     return latest_file
 
@@ -94,7 +96,6 @@ def do_docker_utils_update():
 
     print('latest: {}'.format(file_name))
 
-    file_list.remove(file_name)
     if file_list:
         if args.update:
             print('updating:-')
@@ -111,10 +112,10 @@ def do_docker_utils_update():
 if __name__ == "__main__":
     try:
         do_docker_utils_update()
-
-    except Exception as e:
-        print('Error:{}: {}'.format(e.__class__.__name__, e), file = sys.stderr)
-        sys.exit(1)
+    #
+    # except Exception as e:
+    #     print('Error:{}: {}'.format(e.__class__.__name__, e), file = sys.stderr)
+    #     sys.exit(1)
 
     except KeyboardInterrupt:
         pass
