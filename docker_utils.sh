@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 
-# 2017-09-19 13:45
+# 2017-09-28 16:27
 
 script_path=$(cd $(dirname $0); pwd -P)
 
@@ -9,12 +9,8 @@ script_path=$(cd $(dirname $0); pwd -P)
 # check for src dir
 [[ ! -d "${script_path}/src" ]] && { echo "src directory not found" 1>&2 ; exit 1 ; }
 
-# docker_cmd and container_hostname
+# docker_cmd
 docker_cmd=${DOCKER_CMD:-docker}
-if [[ ! -z "${DOCKER_HOST:-}" && "${DOCKER_HOST}" =~ ^tcp://(.*):[0-9]*$ ]]
-then
-    container_hostname="${BASH_REMATCH[1]}"
-fi
 
 # for a symlink name <prefix>_<type>.sh echo <type> or nothing
 function get_link_type() {
