@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 
-# 2017-09-28 16:27
+# 2017-09-29 18:07
 
 script_path=$(cd $(dirname $0); pwd -P)
 
@@ -74,12 +74,13 @@ build_image*)
 
 start_container*)
     link_type=$(get_link_type "start_container" "${script_name}")
+    container_name_init="${container_name:-}"
     container_name=$(get_container_name "${link_type}")
     image_name=$(get_image_name "${container_name}")
 
     if [[ ! -z "${link_type}" ]]
     then
-        container_name="${container_name}_${link_type}"
+        [[ "${container_name_init}" == "${container_name}" ]] && container_name="${container_name}_${link_type}"
 
         docker_args_name="docker_args_${link_type}"
         [[ ! -z "${!docker_args_name:-}" ]] && docker_args="${!docker_args_name}"
@@ -107,12 +108,13 @@ start_container*)
 
 stop_container*)
     link_type=$(get_link_type "stop_container" "${script_name}")
+    container_name_init="${container_name:-}"
     container_name=$(get_container_name "${link_type}")
     image_name=$(get_image_name "${container_name}")
 
     if [[ ! -z "${link_type}" ]]
     then
-        container_name="${container_name}_${link_type}"
+        [[ "${container_name_init}" == "${container_name}" ]] && container_name="${container_name}_${link_type}"
 
         docker_stop_timeout_name="docker_stop_timeouts_${link_type}"
         [[ ! -z "${!docker_stop_timeout_name:-}" ]] && docker_stop_timeout="${!docker_stop_timeout_name}"
@@ -128,12 +130,13 @@ stop_container*)
 
 tail_logs*)
     link_type=$(get_link_type "tail_logs" "${script_name}")
+    container_name_init="${container_name:-}"
     container_name=$(get_container_name "${link_type}")
     image_name=$(get_image_name "${container_name}")
 
     if [[ ! -z "${link_type}" ]]
     then
-        container_name="${container_name}_${link_type}"
+        [[ "${container_name_init}" == "${container_name}" ]] && container_name="${container_name}_${link_type}"
     fi
 
     echo "#### TAIL ${container_name}"
@@ -169,7 +172,7 @@ push_image*)
     ;;
 
 list_remote_tags*)
-    link_type=$(get_link_type "push_image" "${script_name}")
+    link_type=$(get_link_type "list_remote_tags" "${script_name}")
     container_name=$(get_container_name "${link_type}")
     image_name=$(get_image_name "${container_name}")
 
@@ -177,7 +180,7 @@ list_remote_tags*)
 
     if [[ "${DOCKER_REPO:-}" =~ ^[0-9]*\.dkr\.ecr\.[^\.]*\.amazonaws\.com\/*(.*)$ ]]
     then
-        image_info=$(aws ecr describe-images --repository-name "${BASH_REMATCH[1]:+${BASH_REMATCH[1]}/}${container_name}" | jq .imageDetails[].imageTags[] | sort)
+        image_info=$(aws ecr describe-images --repository-name "${BASH_REMATCH[1]:+${BASH_REMATCH[1]}/}${container_name}" | jq '.imageDetails[] | select (.imageTags != null) | .imageTags[]' | sort)
         echo "${image_info}"
     else
         echo "Unknown repository: ${DOCKER_REPO:-}"
