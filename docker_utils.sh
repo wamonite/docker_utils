@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 
-# 2017-09-29 18:07
+# 2017-10-27 16:52
 
 script_path=$(cd $(dirname $0); pwd -P)
 
@@ -150,7 +150,18 @@ push_image*)
 
     echo '#### PUSH'
 
-    version="${1:-}"
+    version=""
+    while [[ $# -ne 0 ]]
+    do
+        if [[ "${1}" == "-y" ]]
+        then
+            push_git_tag="y"
+        else
+            version="${1}"
+        fi
+
+        shift
+    done
 
     if [[ -z "${version}" ]]
     then
@@ -159,6 +170,7 @@ push_image*)
     else
         if [[ "${version}" != "latest" ]]
         then
+            echo "#### TAG ${image_name}:${version}"
             ${docker_cmd} tag "${image_name}:latest" "${image_name}:${version}"
         fi
 
@@ -166,7 +178,18 @@ push_image*)
 
         if [[ "${version}" != "latest" ]]
         then
+            echo "#### GIT TAG ${version}"
             git tag -a "${version}" -m "${image_name}:${version}"
+
+            if [[ -z "${push_git_tag:-}" ]]
+            then
+                read -p "git push origin --tags? [Y/n]: " -n 1 push_git_tag
+            fi
+
+            if [[ -z "${push_git_tag}" || "${push_git_tag}" == "y" || "${push_git_tag}" == "Y" ]]
+            then
+                git push origin --tags
+            fi
         fi
     fi
     ;;
