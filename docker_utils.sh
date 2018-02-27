@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 
-# 2017-10-27 16:52
+# 2018-02-27 21:44
 
 script_path=$(cd $(dirname $0); pwd -P)
 
@@ -51,7 +51,7 @@ function get_image_name() {
 
 # vars may have changed, so echo the latest start arguments
 function get_host_args() {
-    echo "${container_network:+--net ${container_network}} --hostname ${container_hostname:-${container_name}} --name ${container_name}"
+    echo "${container_network:+--net ${container_network}} --hostname ${container_hostname:-${container_name//_/-}} --name ${container_name}"
 }
 
 # choose what to do on symlink name
@@ -141,6 +141,21 @@ tail_logs*)
 
     echo "#### TAIL ${container_name}"
     exec ${docker_cmd} logs --tail 100 -f "${container_name}"
+    ;;
+
+exec_bash*)
+    link_type=$(get_link_type "exec_bash" "${script_name}")
+    container_name_init="${container_name:-}"
+    container_name=$(get_container_name "${link_type}")
+    image_name=$(get_image_name "${container_name}")
+
+    if [[ ! -z "${link_type}" ]]
+    then
+        [[ "${container_name_init}" == "${container_name}" ]] && container_name="${container_name}_${link_type}"
+    fi
+
+    echo "#### EXEC BASH ${container_name}"
+    exec ${docker_cmd} exec -ti "${container_name}" bash
     ;;
 
 push_image*)
