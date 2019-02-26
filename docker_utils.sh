@@ -1,7 +1,5 @@
 #!/bin/bash -eu
 
-# 2018-02-27 21:44
-
 script_path=$(cd $(dirname $0); pwd -P)
 
 . "${script_path}/config.sh"
@@ -250,7 +248,7 @@ initialise_*)
     tar -cf - -C ${volume_src} . | ${docker_cmd} cp - ${container_name}:${volume_dest}
     ;;
 
-backup*)
+backup_*)
     # TODO does not currently support link types
     container_name=$(get_container_name "")
     image_name=$(get_image_name "${container_name}")
