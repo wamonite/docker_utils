@@ -216,7 +216,7 @@ list_remote_tags*)
 
     if [[ "${DOCKER_REPO:-}" =~ ^[0-9]*\.dkr\.ecr\.[^\.]*\.amazonaws\.com\/*(.*)$ ]]
     then
-        image_info=$(aws ecr describe-images --repository-name "${BASH_REMATCH[1]:+${BASH_REMATCH[1]}/}${container_name}" | jq '.imageDetails[] | select (.imageTags != null) | .imageTags[]' | sort)
+        image_info=$(aws ecr describe-images --repository-name "${BASH_REMATCH[1]:+${BASH_REMATCH[1]}/}${container_name}" | jq '.imageDetails[] | select (.imageTags != null)' | jq -s -c 'sort_by(.imagePushedAt)[] | .imageTags' | tail -r)
         echo "${image_info}"
     else
         echo "Unknown repository: ${DOCKER_REPO:-}"
