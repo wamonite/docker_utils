@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 
-script_path=$(cd $(dirname $0); pwd -P)
+script_path=$(cd "$(dirname "$0")"; pwd -P)
 
 . "${script_path}/config.sh"
 
@@ -27,10 +27,10 @@ function get_link_type() {
 function get_container_name() {
     local link_type_val="${1:-}"
     local container_name_val="${container_name:-}"
-    if [[ ! -z "${link_type_val}" ]]
+    if [[ -n "${link_type_val}" ]]
     then
         local container_name_name="container_name_${link_type_val}"
-        [[ ! -z "${!container_name_name:-}" ]] && container_name_val="${!container_name_name}"
+        [[ -n "${!container_name_name:-}" ]] && container_name_val="${!container_name_name}"
     fi
 
     # check for valid container name
@@ -47,27 +47,46 @@ function get_image_name() {
     echo "${repo_name:+${repo_name}/}${container_name_val}"
 }
 
-# vars may have changed, so echo the latest start arguments
-function get_host_args() {
-    echo "${container_network:+--net ${container_network}} --hostname ${container_hostname:-${container_name//_/-}} --name ${container_name}"
+# vars may have changed, so set the global host_args with the latest start arguments
+function set_host_args() {
+    host_args=()
+    [[ -n "${container_network:-}" ]] && host_args=(--net "${container_network}")
+    host_args+=(--hostname "${container_hostname:-${container_name//_/-}}" --name "${container_name}")
+    eval "declare -p host_args" 1>/dev/null 2>&1
 }
 
 # choose what to do on symlink name
-script_name=$(basename $0)
+script_name=$(basename "$0")
 case "$script_name" in
 build_image*)
     link_type=$(get_link_type "build_image" "${script_name}")
     container_name=$(get_container_name "${link_type}")
     image_name=$(get_image_name "${container_name}")
 
-    if [[ ! -z "${link_type}" ]]
+    if [[ -n "${link_type}" ]]
     then
-        build_args_name="build_args_${link_type}"
-        [[ ! -z "${!build_args_name:-}" ]] && build_args="${!build_args_name}"
+        build_args_name="build_args_${link_type}[@]"
+        [[ -n "${!build_args_name:-}" ]] && build_args=("${!build_args_name}")
     fi
 
-    echo "#### BUILD ${image_name}${build_args:+ '${build_args}'}"
-    exec ${docker_cmd} build ${build_args:-} --rm -t "${image_name}" "${script_path}/src"
+    cmd_title=("#### BUILD ${image_name}")
+    cmd_args=("${docker_cmd}" build)
+    if [[ -n "${build_args:-}" ]]
+    then
+        cmd_title+=("'${build_args[*]}'")
+        cmd_args+=("${build_args[@]}")
+    fi
+
+    if [[ $# -ne 0 ]]
+    then
+        cmd_title+=("'$*'")
+        cmd_args+=("$@")
+    fi
+
+    cmd_args+=(--rm -t "${image_name}" "${script_path}/src")
+
+    echo "${cmd_title[*]}"
+    exec "${cmd_args[@]}"
     ;;
 
 start_container*)
@@ -76,32 +95,61 @@ start_container*)
     container_name=$(get_container_name "${link_type}")
     image_name=$(get_image_name "${container_name}")
 
-    if [[ ! -z "${link_type}" ]]
+    if [[ -n "${link_type}" ]]
     then
         [[ "${container_name_init}" == "${container_name}" ]] && container_name="${container_name}_${link_type}"
 
-        docker_args_name="docker_args_${link_type}"
-        [[ ! -z "${!docker_args_name:-}" ]] && docker_args="${!docker_args_name}"
+        docker_args_name="docker_args_${link_type}[@]"
+        [[ -n "${!docker_args_name:-}" ]] && docker_args=("${!docker_args_name}")
 
-        command_args_name="command_args_${link_type}"
-        [[ ! -z "${!command_args_name:-}" ]] && command_args="${!command_args_name}"
+        command_args_name="command_args_${link_type}[@]"
+        [[ -n "${!command_args_name:-}" ]] && command_args=("${!command_args_name}")
 
-        daemon_args_name="daemon_args_${link_type}"
-        [[ ! -z "${!daemon_args_name:-}" ]] && daemon_args="${!daemon_args_name}"
+        daemon_args_name="daemon_args_${link_type}[@]"
+        [[ -n "${!daemon_args_name:-}" ]] && daemon_args=("${!daemon_args_name}")
     fi
+
+    set_host_args
+
+    cmd_title=("#### START ${container_name}")
+    cmd_args=("${docker_cmd}" run)
+
+    if [[ -n "${container_daemon:-}" ]]
+    then
+        cmd_title=("#### START DAEMON ${container_name}")
+        cmd_args+=(-d --restart unless-stopped)
+    else
+        cmd_args+=(--rm)
+    fi
+
+    if [[ -z "${container_daemon:-}" && $# -ne 0 ]]
+    then
+        cmd_args+=(-ti)
+    fi
+
+    if [[ -n "${docker_args:-}" ]]
+    then
+        cmd_args+=("${docker_args[@]}")
+    fi
+
+    cmd_args+=("${host_args[@]}" "${image_name}")
 
     if [[ $# -ne 0 ]]
     then
-        echo "#### START ${container_name} '$@'"
-        exec ${docker_cmd} run --rm -ti ${docker_args:-} $(get_host_args) ${image_name} $@
-    elif [[ ! -z "${container_daemon:-}" ]]
+        cmd_title+=("'$*'")
+        cmd_args+=("$@")
+    elif [[ -n "${container_daemon:-}" && -n "${daemon_args:-}" ]]
     then
-        echo "#### START DAEMON ${container_name}"
-        exec ${docker_cmd} run -d --restart unless-stopped ${docker_args:-} $(get_host_args) ${image_name} ${daemon_args:-}
-    else
-        echo "#### START ${container_name}${command_args:+ '${command_args}'}"
-        exec ${docker_cmd} run --rm ${docker_args:-} $(get_host_args) ${image_name} ${command_args:-}
+        cmd_title+=("'${daemon_args[*]}'")
+        cmd_args+=("${daemon_args[@]}")
+    elif [[ -z "${container_daemon:-}" && -n "${command_args:-}" ]]
+    then
+        cmd_title+=("'${command_args[*]}'")
+        cmd_args+=("${command_args[@]}")
     fi
+
+    echo "${cmd_title[*]}"
+    exec "${cmd_args[@]}"
     ;;
 
 stop_container*)
@@ -110,19 +158,19 @@ stop_container*)
     container_name=$(get_container_name "${link_type}")
     image_name=$(get_image_name "${container_name}")
 
-    if [[ ! -z "${link_type}" ]]
+    if [[ -n "${link_type}" ]]
     then
         [[ "${container_name_init}" == "${container_name}" ]] && container_name="${container_name}_${link_type}"
 
-        docker_stop_timeout_name="docker_stop_timeouts_${link_type}"
-        [[ ! -z "${!docker_stop_timeout_name:-}" ]] && docker_stop_timeout="${!docker_stop_timeout_name}"
+        docker_stop_timeout_name="docker_stop_timeout_${link_type}"
+        [[ -n "${!docker_stop_timeout_name:-}" ]] && docker_stop_timeout="${!docker_stop_timeout_name}"
     fi
 
     echo "#### STOP ${container_name}"
     set +e
-    ${docker_cmd} stop ${docker_stop_timeout:+--time ${docker_stop_timeout}} "${container_name}"
-    ${docker_cmd} logs --tail 100 "${container_name}"
-    ${docker_cmd} rm -v "${container_name}"
+    "${docker_cmd}" stop ${docker_stop_timeout:+--time ${docker_stop_timeout}} "${container_name}"
+    "${docker_cmd}" logs --tail 100 "${container_name}"
+    "${docker_cmd}" rm -v "${container_name}"
     set -e
     ;;
 
@@ -132,13 +180,13 @@ tail_logs*)
     container_name=$(get_container_name "${link_type}")
     image_name=$(get_image_name "${container_name}")
 
-    if [[ ! -z "${link_type}" ]]
+    if [[ -n "${link_type}" ]]
     then
         [[ "${container_name_init}" == "${container_name}" ]] && container_name="${container_name}_${link_type}"
     fi
 
     echo "#### TAIL ${container_name}"
-    exec ${docker_cmd} logs --tail 100 -f "${container_name}"
+    exec "${docker_cmd}" logs --tail 100 -f "${container_name}"
     ;;
 
 exec_bash*)
@@ -147,13 +195,13 @@ exec_bash*)
     container_name=$(get_container_name "${link_type}")
     image_name=$(get_image_name "${container_name}")
 
-    if [[ ! -z "${link_type}" ]]
+    if [[ -n "${link_type}" ]]
     then
         [[ "${container_name_init}" == "${container_name}" ]] && container_name="${container_name}_${link_type}"
     fi
 
     echo "#### EXEC BASH ${container_name}"
-    exec ${docker_cmd} exec -ti "${container_name}" bash
+    exec "${docker_cmd}" exec -ti "${container_name}" bash
     ;;
 
 push_image*)
@@ -178,16 +226,21 @@ push_image*)
 
     if [[ -z "${version}" ]]
     then
-        exec ${docker_cmd} images | grep "^${image_name} "
+        exec "${docker_cmd}" images | grep "^${image_name} "
 
     else
         if [[ "${version}" != "latest" ]]
         then
             echo "#### TAG ${image_name}:${version}"
-            ${docker_cmd} tag "${image_name}:latest" "${image_name}:${version}"
+            "${docker_cmd}" tag "${image_name}:latest" "${image_name}:${version}"
         fi
 
-        ${docker_cmd} push "${image_name}:${version}"
+        "${docker_cmd}" push "${image_name}:${version}"
+
+        if [[ $(git diff --stat) != '' ]]; then
+            echo "#### Repository state is dirty, please commit before git tag"
+            exit 1
+        fi
 
         if [[ "${version}" != "latest" ]]
         then
@@ -196,7 +249,7 @@ push_image*)
 
             if [[ -z "${push_git_tag:-}" ]]
             then
-                read -p "git push origin --tags? [Y/n]: " -n 1 push_git_tag
+                read -rp "git push origin --tags? [Y/n]: " -n 1 push_git_tag
             fi
 
             if [[ -z "${push_git_tag}" || "${push_git_tag}" == "y" || "${push_git_tag}" == "Y" ]]
@@ -242,10 +295,12 @@ initialise_*)
     container_name="${container_name}_${volume_name}"
     echo "#### INITIALISE ${container_name} (${volume_src} -> ${volume_dest})"
 
-    trap "${docker_cmd} rm -v ${container_name}" SIGINT SIGTERM EXIT
+    trap '${docker_cmd} rm -v ${container_name}' SIGINT SIGTERM EXIT
 
-    ${docker_cmd} create --rm -v ${container_name}:${volume_dest} $(get_host_args) ${image_name}
-    tar -cf - -C ${volume_src} . | ${docker_cmd} cp - ${container_name}:${volume_dest}
+    set_host_args
+
+    ${docker_cmd} create --rm -v "${container_name}:${volume_dest}" "${host_args[@]}" "${image_name}"
+    tar -cf - -C "${volume_src}" . | ${docker_cmd} cp - "${container_name}:${volume_dest}"
     ;;
 
 backup_*)
@@ -264,7 +319,7 @@ backup_*)
 
     echo "#### BACKUP ${volume_id} (${volume_dest} -> ${volume_backup})"
 
-    exec ${docker_cmd} cp ${container_name}:${volume_dest} - | gzip -c > "${volume_backup}"
+    exec "${docker_cmd}" cp "${container_name}:${volume_dest}" - | gzip -c > "${volume_backup}"
     ;;
 
 *)

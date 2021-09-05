@@ -4,11 +4,15 @@
 
 ## Config
 
-The tasks are configured via a local bash script `config.sh` by setting values for named variables e.g.
+The tasks are configured via a local bash script `config.sh` by setting values for named variables. All `*_args` variables must be arrays rather than strings for correct parsing of whitespace.
 
     #!/bin/bash
 
     container_name=my_container
+    build_args=( \
+      --no-cache \
+      --label maintainer="Warren Moore <warren.moore@spatialbuzz.com>" \
+    )
 
 ## Tasks
 
@@ -16,15 +20,17 @@ The tasks are configured via a local bash script `config.sh` by setting values f
 * `docker build --rm` for the configured image
 * Image name is set by the config variable `container_name`
 * If the environment variable `DOCKER_REPO` is defined, the image name is set to `<DOCKER_REPO>/<container_name>`
-* Extra arguments to the build command can be supplied with the config variable `build_args` e.g. `builds_args='--no-cache'`
+* Extra arguments to the build command can be supplied with the config array `build_args` e.g. `builds_args=(--no-cache)`
+* If command line arguments are supplied, they are added as build options and`build_args` are ignored e.g. `./build_image.sh --no-cache`
 
 ### `start_container.sh`
 * `docker run` the configured image
 * Image and container name is set by the config variable `container_name`
 * By default, will run with `--rm` as a foreground container with the config variable `command_args` appended to the run command
-* If command line arguments are supplied, will run with `-ti --rm` as a foreground container and arguments are appended to the run command (config variable `command_args` is ignored)
-* If the config variable `container_daemon` is defined and non-zero, and no command line arguments are supplied, will run with `-d` with the config variable `daemon_args` appended to the run command
-* If the config variable `docker_args` is defined and non-zero, it is inserted after the run but before the image and command arguments e.g. `docker_args='-v data:/data -p 80:80'`
+* If the config variable `docker_args` is defined and non-zero, it is inserted after the run but before the image and command arguments e.g. `docker_args=(-v data:/data -p 80:80)`
+* If command line arguments are supplied, will run with `-ti` as a foreground container and arguments are appended to the run command (config variable `command_args` is ignored)
+* If the config variable `container_daemon` is defined and non-zero is, will run with `-d --restart unless-stopped` with the config variable `daemon_args` appended to the run command
+    * If command line arguments are supplied, these override `daemon_args`
 * If the config variable `container_network` is defined, it is added to the run options as `--net <container_network>` e.g. `container_network=host`
 * If the config variable `container_hostname` is defined, it is added to the run options as `--hostname <container_hostname>` otherwise `--hostname <container_name>` is used (with `_` replaced with `-`)
 
